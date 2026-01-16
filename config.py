@@ -1,6 +1,9 @@
-# ...new module for constants and asset dictionaries...
-MY_API_KEY = "AIzaSyBQV5sXWWlDY-KUx3kOpTQ24vH17MElYT4"
-MODEL_NAME = "gemini-flash-latest"
+# config.py
+import streamlit as st
+
+# Lấy key từ Secrets (két sắt)
+MY_API_KEY = st.secrets["MY_API_KEY"] 
+MODEL_NAME = st.secrets["MODEL_NAME"]
 
 TU_DIEN_DATA = {
     # ==================================================
@@ -173,3 +176,4 @@ HOT_ASSETS = [
     {"key": "gas",    "symbol": "GAS.VN", "name": "PV Gas", "icon": "⛽"},
     {"key": "bsr",    "symbol": "BSR.VN", "name": "Lọc hóa dầu Bình Sơn", "icon": "🛢️"},
 ]
+
