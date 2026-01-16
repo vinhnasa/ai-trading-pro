@@ -1,0 +1,332 @@
+import streamlit as st
+import yfinance as yf
+import pandas_ta as ta
+import google.generativeai as genai
+import streamlit.components.v1 as components
+import requests
+from streamlit_searchbox import st_searchbox 
+import warnings
+
+# --- 1. CẤU HÌNH HỆ THỐNG ---
+st.set_page_config(
+    page_title="AI Trading Pro", 
+    layout="wide", 
+    page_icon="🦁",
+    initial_sidebar_state="expanded"
+)
+warnings.filterwarnings("ignore")
+
+# ==========================================
+# 🔑 KHU VỰC NHẬP API KEY CỦA BẠN
+# ==========================================
+MY_API_KEY = "AIzaSyCtnQ98VfegW3tbswh18_bwxd4gL8JY2Lg" 
+
+# Cấu hình Model
+MODEL_NAME = 'gemini-2.5-flash'
+
+# Kết nối AI
+try:
+    genai.configure(api_key=MY_API_KEY, transport='rest')
+    model = genai.GenerativeModel(MODEL_NAME)
+except Exception as e:
+    st.error(f"⚠️ Lỗi cấu hình API Key: {e}")
+
+# --- 2. TỪ ĐIỂN DỮ LIỆU (Mapping thông minh - Phiên bản Mở rộng) ---
+# Cấu trúc: "từ_khóa_người_dùng": {
+#    "yahoo": "Mã để AI lấy dữ liệu (Yahoo Finance)", 
+#    "tv": "Mã để hiện biểu đồ (TradingView)", 
+#    "name": "Tên hiển thị đẹp"
+# }
+
+TU_DIEN_DATA = {
+    # ==================================================
+    # 1. HÀNG HÓA (COMMODITIES) - VÀNG, BẠC, DẦU
+    # ==================================================
+    "xauusd": {"yahoo": "GC=F", "tv": "OANDA:XAUUSD", "name": "🥇 Vàng (Gold Spot)"},
+    "gold":   {"yahoo": "GC=F", "tv": "OANDA:XAUUSD", "name": "🥇 Vàng (Gold Spot)"},
+    "vang":   {"yahoo": "GC=F", "tv": "OANDA:XAUUSD", "name": "🥇 Vàng (Gold Spot)"},
+    
+    "silver": {"yahoo": "SI=F", "tv": "OANDA:XAGUSD", "name": "🥈 Bạc (Silver)"},
+    "bac":    {"yahoo": "SI=F", "tv": "OANDA:XAGUSD", "name": "🥈 Bạc (Silver)"},
+    "xagusd": {"yahoo": "SI=F", "tv": "OANDA:XAGUSD", "name": "🥈 Bạc (Silver)"},
+    
+    "usoil":  {"yahoo": "CL=F", "tv": "TVC:USOIL",    "name": "🛢️ Dầu WTI (Crude Oil)"},
+    "oil":    {"yahoo": "CL=F", "tv": "TVC:USOIL",    "name": "🛢️ Dầu WTI (Crude Oil)"},
+    "dau":    {"yahoo": "CL=F", "tv": "TVC:USOIL",    "name": "🛢️ Dầu WTI (Crude Oil)"},
+    
+    "ukoil":  {"yahoo": "BZ=F", "tv": "TVC:UKOIL",    "name": "🛢️ Dầu Brent"},
+
+    # ==================================================
+    # 2. TIỀN ĐIỆN TỬ (CRYPTO) - TOP COINS
+    # ==================================================
+    "btc":  {"yahoo": "BTC-USD", "tv": "BINANCE:BTCUSDT", "name": "₿ Bitcoin (BTC)"},
+    "eth":  {"yahoo": "ETH-USD", "tv": "BINANCE:ETHUSDT", "name": "💎 Ethereum (ETH)"},
+    "sol":  {"yahoo": "SOL-USD", "tv": "BINANCE:SOLUSDT", "name": "☀️ Solana (SOL)"},
+    "bnb":  {"yahoo": "BNB-USD", "tv": "BINANCE:BNBUSDT", "name": "🔶 Binance Coin (BNB)"},
+    "xrp":  {"yahoo": "XRP-USD", "tv": "BINANCE:XRPUSDT", "name": "❌ Ripple (XRP)"},
+    "doge": {"yahoo": "DOGE-USD","tv": "BINANCE:DOGEUSDT","name": "🐶 Dogecoin"},
+    "ada":  {"yahoo": "ADA-USD", "tv": "BINANCE:ADAUSDT", "name": "🔵 Cardano (ADA)"},
+    "link": {"yahoo": "LINK-USD","tv": "BINANCE:LINKUSDT","name": "🔗 Chainlink"},
+
+    # ==================================================
+    # 3. CHỨNG KHOÁN VIỆT NAM (TOP VN30 & HOT)
+    # ==================================================
+    "vnindex": {"yahoo": "^VNINDEX", "tv": "HOSE:VNINDEX", "name": "🇻🇳 VN-Index"},
+    
+    # Ngân hàng
+    "vcb": {"yahoo": "VCB.VN", "tv": "HOSE:VCB", "name": "🏦 Vietcombank"},
+    "bid": {"yahoo": "BID.VN", "tv": "HOSE:BID", "name": "🏦 BIDV"},
+    "ctg": {"yahoo": "CTG.VN", "tv": "HOSE:CTG", "name": "🏦 VietinBank"},
+    "tcb": {"yahoo": "TCB.VN", "tv": "HOSE:TCB", "name": "🏦 Techcombank"},
+    "mb":  {"yahoo": "MBB.VN", "tv": "HOSE:MBB", "name": "🏦 MB Bank"},
+    "mbb": {"yahoo": "MBB.VN", "tv": "HOSE:MBB", "name": "🏦 MB Bank"},
+    "stb": {"yahoo": "STB.VN", "tv": "HOSE:STB", "name": "🏦 Sacombank"},
+    "acb": {"yahoo": "ACB.VN", "tv": "HOSE:ACB", "name": "🏦 ACB"},
+    "vpb": {"yahoo": "VPB.VN", "tv": "HOSE:VPB", "name": "🏦 VPBank"},
+
+    # Bất động sản & Thép
+    "vic": {"yahoo": "VIC.VN", "tv": "HOSE:VIC", "name": "🏙️ Vingroup"},
+    "vhm": {"yahoo": "VHM.VN", "tv": "HOSE:VHM", "name": "🏘️ Vinhomes"},
+    "vre": {"yahoo": "VRE.VN", "tv": "HOSE:VRE", "name": "🛍️ Vincom Retail"},
+    "nvl": {"yahoo": "NVL.VN", "tv": "HOSE:NVL", "name": "🏘️ Novaland"},
+    "hpg": {"yahoo": "HPG.VN", "tv": "HOSE:HPG", "name": "🏗️ Hòa Phát"},
+    "hsg": {"yahoo": "HSG.VN", "tv": "HOSE:HSG", "name": "🏗️ Hoa Sen"},
+    "nkg": {"yahoo": "NKG.VN", "tv": "HOSE:NKG", "name": "🏗️ Nam Kim"},
+
+    # Chứng khoán & Bán lẻ & Khác
+    "ssi": {"yahoo": "SSI.VN", "tv": "HOSE:SSI", "name": "📈 SSI Securities"},
+    "vnd": {"yahoo": "VND.VN", "tv": "HOSE:VND", "name": "📈 VNDirect"},
+    "fpt": {"yahoo": "FPT.VN", "tv": "HOSE:FPT", "name": "💻 FPT Corp"},
+    "mwg": {"yahoo": "MWG.VN", "tv": "HOSE:MWG", "name": "📱 Thế Giới Di Động"},
+    "msn": {"yahoo": "MSN.VN", "tv": "HOSE:MSN", "name": "🍜 Masan Group"},
+    "vnm": {"yahoo": "VNM.VN", "tv": "HOSE:VNM", "name": "🥛 Vinamilk"},
+    "sab": {"yahoo": "SAB.VN", "tv": "HOSE:SAB", "name": "🍺 Sabeco"},
+    "gas": {"yahoo": "GAS.VN", "tv": "HOSE:GAS", "name": "⛽ PV Gas"},
+
+    # ==================================================
+    # 4. CHỨNG KHOÁN MỸ (US STOCKS)
+    # ==================================================
+    # Công nghệ (Big Tech)
+    "tsla": {"yahoo": "TSLA", "tv": "NASDAQ:TSLA", "name": "🚗 Tesla Inc"},
+    "aapl": {"yahoo": "AAPL", "tv": "NASDAQ:AAPL", "name": "🍎 Apple Inc"},
+    "msft": {"yahoo": "MSFT", "tv": "NASDAQ:MSFT", "name": "💻 Microsoft"},
+    "goog": {"yahoo": "GOOGL","tv": "NASDAQ:GOOGL","name": "🔍 Google (Alphabet)"},
+    "amzn": {"yahoo": "AMZN", "tv": "NASDAQ:AMZN", "name": "📦 Amazon"},
+    "meta": {"yahoo": "META", "tv": "NASDAQ:META", "name": "♾️ Meta (Facebook)"},
+    "nvda": {"yahoo": "NVDA", "tv": "NASDAQ:NVDA", "name": "🤖 NVIDIA"},
+    "amd":  {"yahoo": "AMD",  "tv": "NASDAQ:AMD",  "name": "💾 AMD"},
+    "nflx": {"yahoo": "NFLX", "tv": "NASDAQ:NFLX", "name": "🎬 Netflix"},
+    "intc": {"yahoo": "INTC", "tv": "NASDAQ:INTC", "name": "💾 Intel"},
+
+    # Các mã phổ biến khác
+    "ko":   {"yahoo": "KO",   "tv": "NYSE:KO",     "name": "🥤 Coca-Cola"},
+    "pep":  {"yahoo": "PEP",  "tv": "NASDAQ:PEP",  "name": "🥤 PepsiCo"},
+    "mcd":  {"yahoo": "MCD",  "tv": "NYSE:MCD",    "name": "🍔 McDonald's"},
+    "dis":  {"yahoo": "DIS",  "tv": "NYSE:DIS",    "name": "🏰 Disney"},
+    "nke":  {"yahoo": "NKE",  "tv": "NYSE:NKE",    "name": "👟 Nike"},
+    
+    # ==================================================
+    # 5. NGOẠI HỐI (FOREX) & CHỈ SỐ (INDICES)
+    # ==================================================
+    "eurusd": {"yahoo": "EURUSD=X", "tv": "FX:EURUSD", "name": "💶 EUR/USD"},
+    "gbpusd": {"yahoo": "GBPUSD=X", "tv": "FX:GBPUSD", "name": "💷 GBP/USD"},
+    "usdjpy": {"yahoo": "JPY=X",    "tv": "FX:USDJPY", "name": "💴 USD/JPY"},
+    "audusd": {"yahoo": "AUDUSD=X", "tv": "FX:AUDUSD", "name": "🇦🇺 AUD/USD"},
+    "usdcad": {"yahoo": "CAD=X",    "tv": "FX:USDCAD", "name": "🇨🇦 USD/CAD"},
+    
+    "dxy":    {"yahoo": "DX-Y.NYB", "tv": "TVC:DXY",   "name": "💲 DXY (Dollar Index)"},
+    
+    # Chỉ số chứng khoán Mỹ
+    "us30":   {"yahoo": "^DJI",     "tv": "TVC:DJI",   "name": "🇺🇸 Dow Jones (US30)"},
+    "dow":    {"yahoo": "^DJI",     "tv": "TVC:DJI",   "name": "🇺🇸 Dow Jones (US30)"},
+    "us500":  {"yahoo": "^GSPC",    "tv": "TVC:SPX",   "name": "🇺🇸 S&P 500"},
+    "spx":    {"yahoo": "^GSPC",    "tv": "TVC:SPX",   "name": "🇺🇸 S&P 500"},
+    "us100":  {"yahoo": "^IXIC",    "tv": "TVC:IXIC",  "name": "🇺🇸 Nasdaq 100"},
+    "nasdaq": {"yahoo": "^IXIC",    "tv": "TVC:IXIC",  "name": "🇺🇸 Nasdaq 100"},
+}
+# --- 3. CÁC HÀM XỬ LÝ (Backend) ---
+
+def ham_tim_kiem(searchterm: str):
+    if not searchterm:
+        return [("🔥 Vàng (Gold)", "xauusd"), ("₿ Bitcoin (BTC)", "btc"), ("🇻🇳 VnIndex", "vnindex")]
+
+    query = searchterm.lower().strip()
+    ket_qua = []
+
+    if ":" in query:
+        return [(f"🌍 Mã sàn cụ thể: {searchterm.upper()}", f"DIRECT|{searchterm.upper()}")]
+
+    count = 0
+    for key, data in TU_DIEN_DATA.items():
+        if query in key or query in data['name'].lower():
+            ket_qua.append((f"✨ {data['name']}", key))
+            count += 1
+            if count >= 5: break
+    
+    if len(ket_qua) < 3:
+        try:
+            url = "https://query2.finance.yahoo.com/v1/finance/search"
+            params = {'q': query, 'quotesCount': 5}
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            r = requests.get(url, params=params, headers=headers, timeout=1).json()
+            if 'quotes' in r:
+                for i in r['quotes']:
+                    sym = i.get('symbol', '')
+                    name = i.get('shortname') or sym
+                    tv_suggestion = sym
+                    if ".VN" in sym: tv_suggestion = f"HOSE:{sym.replace('.VN','')}"
+                    elif "=X" in sym: tv_suggestion = f"FX:{sym.replace('=X','')}"
+                    elif "-USD" in sym: tv_suggestion = f"BINANCE:{sym.replace('-USD','USDT')}"
+                    ket_qua.append((f"🌐 {name} ({sym})", f"YAHOO_SEARCH|{sym}|{tv_suggestion}"))
+        except: pass
+        
+    return ket_qua
+
+@st.cache_data(ttl=600)
+def lay_du_lieu_yahoo(symbol):
+    try:
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period="3mo")
+        if df.empty: return None, None, None
+        df['RSI'] = df.ta.rsi(length=14)
+        return df['Close'].iloc[-1], df['RSI'].iloc[-1], ticker.news
+    except: return None, None, None
+
+@st.cache_data(ttl=3600)
+def goi_ai_phan_tich(symbol, gia, rsi, news):
+    tin = "Không có tin tức quan trọng."
+    if news:
+        dstt = [f"- {n.get('title','')}" for n in news[:3] if n]
+        tin = "\n".join(dstt)
+
+    prompt = f"""
+    Bạn là Sói Già Phố Wall. Phân tích mã {symbol}:
+    - Giá: {gia:,.2f}
+    - RSI (14): {rsi:.2f}
+    - Tin tức: {tin}
+    
+    Trả lời ngắn gọn, format Markdown:
+    1. **Xu hướng**: (Tăng/Giảm/Sideway)
+    2. **Phân tích kỹ thuật**: Đánh giá RSI và hành động giá.
+    3. ** Phân tích tin tức**: Tóm tắt tác động chính toàn cầu.
+    4. **KHUYẾN NGHỊ**: (MUA / BÁN / QUAN SÁT) kèm vùng giá.
+    """
+    try:
+        return model.generate_content(prompt).text
+    except Exception as e:
+        return f"⚠️ AI Busy: {str(e)}"
+
+# --- 4. GIAO DIỆN NGƯỜI DÙNG (Frontend) ---
+
+st.markdown("""
+<style>
+    .stApp { background-color: #0e1117; color: white; }
+    h1 { color: #4CAF50; }
+</style>
+""", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.title("🦁 AI TRADING PRO")
+    search_key = st_searchbox(ham_tim_kiem, key="main_search", label="🔍 Tìm kiếm tài sản")
+    st.caption("Nhập tên mã hoặc chọn từ danh sách")
+
+if search_key:
+    # --- XỬ LÝ LOGIC ---
+    yahoo_code, tv_code, display_name = "", "", ""
+
+    if search_key in TU_DIEN_DATA:
+        d = TU_DIEN_DATA[search_key]
+        yahoo_code, tv_code, display_name = d['yahoo'], d['tv'], d['name']
+    elif "DIRECT|" in search_key:
+        tv_code = search_key.split("|")[1]
+        display_name = tv_code
+        sym = tv_code.split(":")[1] if ":" in tv_code else tv_code
+        yahoo_code = f"{sym}=X" if "USD" in sym else sym
+    elif "YAHOO_SEARCH|" in search_key:
+        parts = search_key.split("|")
+        yahoo_code, tv_code, display_name = parts[1], parts[2], parts[1]
+
+    # --- HIỂN THỊ ---
+    st.title(f"📊 {display_name}")
+
+    col1, col2 = st.columns([35, 65], gap="medium")
+
+    # CỘT TRÁI: AI & DỮ LIỆU
+    with col1:
+        st.subheader("🤖 Phân tích AI")
+        with st.spinner('Đang tải dữ liệu...'):
+            gia, rsi, tin = lay_du_lieu_yahoo(yahoo_code)
+            
+            if gia:
+                c1, c2 = st.columns(2)
+                c1.metric("Giá Hiện Tại", f"{gia:,.2f}")
+                status_rsi = "Quá Mua 🔴" if rsi > 70 else "Quá Bán 🟢" if rsi < 30 else "Trung tính ⚪"
+                c2.metric("RSI (14)", f"{rsi:.1f}", status_rsi)
+                
+                st.markdown("---")
+                nhan_dinh = goi_ai_phan_tich(yahoo_code, gia, rsi, tin)
+                st.markdown(nhan_dinh)
+            else:
+                st.warning(f"Không lấy được dữ liệu Yahoo cho mã: {yahoo_code}")
+
+    # CỘT PHẢI: HỆ THỐNG BIỂU ĐỒ KÉP
+    with col2:
+        # 1. BIỂU ĐỒ CHÍNH (PRICE ACTION)
+        st.markdown("**1. Biểu đồ giá & Hành động thị trường**")
+        html_chart_main = f"""
+        <div class="tradingview-widget-container" style="height: 500px; width: 100%; margin-bottom: 20px;">
+          <div id="tradingview_main" style="height: 100%; width: 100%;"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+          <script type="text/javascript">
+          new TradingView.widget(
+          {{
+            "autosize": true,
+            "symbol": "{tv_code}", 
+            "interval": "D",
+            "timezone": "Asia/Ho_Chi_Minh",
+            "theme": "dark",
+            "style": "1",
+            "locale": "vi_VN",
+            "toolbar_bg": "#f1f3f6",
+            "enable_publishing": false,
+            "allow_symbol_change": true, 
+            "container_id": "tradingview_main"
+          }});
+          </script>
+        </div>
+        """
+        components.html(html_chart_main, height=500)
+
+        # 2. BIỂU ĐỒ PHỤ (CHỈ BÁO KỸ THUẬT) - TÍNH NĂNG MỚI
+        st.markdown("**2. Chỉ báo kỹ thuật (RSI, MACD, Bollinger Bands)**")
+        html_chart_indicators = f"""
+        <div class="tradingview-widget-container" style="height: 400px; width: 100%;">
+          <div id="tradingview_ind" style="height: 100%; width: 100%;"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+          <script type="text/javascript">
+          new TradingView.widget(
+          {{
+            "autosize": true,
+            "symbol": "{tv_code}", 
+            "interval": "D",
+            "timezone": "Asia/Ho_Chi_Minh",
+            "theme": "dark",
+            "style": "1",
+            "locale": "vi_VN",
+            "enable_publishing": false,
+            "hide_top_toolbar": true,
+            "hide_legend": false,
+            "studies": [
+                "RSI@tv-basicstudies",
+                "MACD@tv-basicstudies",
+                "BB@tv-basicstudies"
+            ],
+            "container_id": "tradingview_ind"
+          }});
+          </script>
+        </div>
+        """
+        components.html(html_chart_indicators, height=400)
+
+else:
+    st.markdown("<br><br><h2 style='text-align:center; color:gray'>👈 Hãy chọn một mã để bắt đầu phân tích</h2>", unsafe_allow_html=True)

@@ -1,0 +1,104 @@
+
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AI Financial Dashboard</title>
+        <style>
+            /* Reset CSS */
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            
+            body { 
+                background-color: #0d1117; 
+                color: #c9d1d9; 
+                font-family: 'Segoe UI', sans-serif; 
+                height: 100vh; /* Bắt buộc body cao bằng màn hình */
+                width: 100vw;
+                display: flex; 
+                overflow: hidden; 
+            }
+            
+            /* Cột trái: AI */
+            .sidebar { 
+                width: 350px; 
+                background: #161b22; 
+                border-right: 1px solid #30363d; 
+                padding: 20px; 
+                overflow-y: auto; 
+                height: 100%; /* Cao full */
+                flex-shrink: 0;
+            }
+            
+            /* Cột phải: Chart Container */
+            .chart-container { 
+                flex-grow: 1; 
+                height: 100vh; /* QUAN TRỌNG: Phải set cứng chiều cao ở đây */
+                width: 100%;
+                position: relative;
+            }
+
+            /* Widget TradingView */
+            .tradingview-widget-container {
+                height: 100% !important; 
+                width: 100% !important;
+            }
+            
+            #tradingview_widget {
+                height: calc(100vh - 2px) !important; /* Trừ hao viền tí xíu */
+                width: 100% !important;
+            }
+
+            iframe {
+                height: 100% !important;
+                width: 100% !important;
+            }
+
+            h2 { color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 15px; }
+            .ai-content { line-height: 1.6; font-size: 15px; white-space: pre-wrap; }
+        </style>
+    </head>
+    <body>
+        <div class="sidebar">
+            <h2>🤖 PHÂN TÍCH AI</h2>
+            <div class="ai-content"><b>BÁO CÁO PHÂN TÍCH TÀI CHÍNH MÃ GC=F (VÀNG TƯƠNG LAI)</b><br>
+<br>
+<b>1. Xu hướng:</b><br>
+Dựa trên dữ liệu giá $4,640.00 và các tiêu đề tin tức, mã GC=F đang nằm trong một xu hướng <b>Tăng trưởng mạnh (Strong Bullish)</b>. Việc liên tục thiết lập các mức cao kỷ lục (All-time highs) cho thấy dòng tiền đang tập trung rất mạnh vào nhóm kim loại quý, tạo ra một đà tăng trưởng bùng nổ trong ngắn và trung hạn.<br>
+<br>
+<b>2. Tác động tin tức:</b><br>
+Các tin tức hiện tại cực kỳ tích cực. Sự bùng nổ của <b>Tokenized Gold</b> (Vàng mã hóa) chiếm 25% tăng trưởng RWA và vượt qua khối lượng giao dịch của các quỹ ETF truyền thống cho thấy sự thay đổi cấu trúc dòng tiền. Việc dòng vốn mới từ lĩnh vực tài sản số đổ vào vàng đang tạo ra một lực cầu bổ sung khổng lồ, củng cố vị thế tài sản trú ẩn an toàn của vàng trong bối cảnh thị trường biến động.<br>
+<br>
+<b>3. Đánh giá RSI:</b><br>
+Chỉ số RSI ở mức <b>69.74</b>. Đây là ngưỡng sát ranh giới <b>Quá mua (Overbought - 70)</b>. Điều này cho thấy lực mua đang cực kỳ hưng phấn nhưng cũng cảnh báo rủi ro về một nhịp điều chỉnh kỹ thuật hoặc đi ngang tích lũy. Thị trường đang "quá nhiệt", do đó dư địa tăng trưởng ngay lập tức mà không có nhịp nghỉ là khá thấp.<br>
+<br>
+<b>4. KẾT LUẬN: GIỮ (HOLD)</b><br>
+<br>
+- <b>Lý do:</b> Xu hướng tăng vẫn đóng vai trò chủ đạo nhờ tin tức hỗ trợ mạnh mẽ, nhưng RSI sát mức 70 là tín hiệu rủi ro để mở vị thế <b>MUA</b> mới tại vùng đỉnh này (rủi ro "đu đỉnh" ngắn hạn). <br>
+- <b>Chiến lược:</b> Đối với nhà đầu tư đang có vị thế, nên tiếp tục <b>GIỮ</b> để gồng lãi và nâng mức chặn lãi (trailing stop). Đối với nhà đầu tư mới, nên kiên nhẫn <b>ĐỢI</b> một nhịp điều chỉnh kỹ thuật khi RSI hạ nhiệt xuống vùng 50-60 trước khi giải ngân. KHÔNG khuyến nghị <b>BÁN</b> vì chưa có dấu hiệu đảo chiều xu hướng.</div>
+        </div>
+
+        <div class="chart-container">
+            <div class="tradingview-widget-container">
+                <div id="tradingview_widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                <script type="text/javascript">
+                new TradingView.widget(
+                {
+                    "autosize": true,
+                    "symbol": "OANDA:XAUUSD",
+                    "interval": "D",
+                    "timezone": "Asia/Ho_Chi_Minh",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "vi_VN",
+                    "enable_publishing": false,
+                    "allow_symbol_change": true,
+                    "container_id": "tradingview_widget"
+                });
+                </script>
+            </div>
+        </div>
+    </body>
+    </html>
+    
